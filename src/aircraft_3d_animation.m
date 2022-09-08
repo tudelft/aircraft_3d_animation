@@ -89,8 +89,10 @@ if isave_movie == 1
 end
 % Get maximum dimension including all the aircraft's parts
 AC_DIMENSION = max(max(sqrt(sum(Model3D.Aircraft(1).stl_data.vertices.^2, 2))));
-for i=1:length(Model3D.Control)
-    AC_DIMENSION = max(AC_DIMENSION, max(max(sqrt(sum(Model3D.Control(i).stl_data.vertices.^2, 2)))));
+if isfield(Model3D, 'Control')
+    for i=1:length(Model3D.Control)
+        AC_DIMENSION = max(AC_DIMENSION, max(max(sqrt(sum(Model3D.Control(i).stl_data.vertices.^2, 2)))));
+    end
 end
 
 %% Initialize the figure
@@ -109,9 +111,11 @@ cameratoolbar('Show')
 % Aircraft transformation group handle
 AV_hg         = hgtransform;
 % controls_deflection_deg transformation group handles
-CONT_hg       = zeros(1,length(Model3D.Control));
-for i=1:length(Model3D.Control)
-    CONT_hg(i) = hgtransform('Parent', AV_hg, 'tag', Model3D.Control(i).label);
+if isfield(Model3D, 'Control')
+    CONT_hg       = zeros(1,length(Model3D.Control));
+    for i=1:length(Model3D.Control)
+        CONT_hg(i) = hgtransform('Parent', AV_hg, 'tag', Model3D.Control(i).label);
+    end
 end
 % Circles around the aircraft transformation group handles
 euler_hgt(1)  = hgtransform('Parent',           AX, 'tag', 'OriginAxes');
@@ -135,16 +139,18 @@ for i = 1:length(Model3D.Aircraft)
         'Parent',            AV_hg, ...
         'LineSmoothing', 'on');
 end
-CONT = zeros(1, (length(Model3D.Control)));
-% Plot controls_deflection_deg
-for i=1:length(Model3D.Control)
-    CONT(i) = patch(Model3D.Control(i).stl_data,  ...
-        'FaceColor',        Model3D.Control(i).color, ...
-        'EdgeColor',        'none',        ...
-        'FaceLighting',     'gouraud',     ...
-        'AmbientStrength',  0.15,          ...
-        'LineSmoothing', 'on',...
-        'Parent',           CONT_hg(i));
+if isfield(Model3D, 'Control')
+    CONT = zeros(1, (length(Model3D.Control)));
+    % Plot controls_deflection_deg
+    for i=1:length(Model3D.Control)
+        CONT(i) = patch(Model3D.Control(i).stl_data,  ...
+            'FaceColor',        Model3D.Control(i).color, ...
+            'EdgeColor',        'none',        ...
+            'FaceLighting',     'gouraud',     ...
+            'AmbientStrength',  0.15,          ...
+            'LineSmoothing', 'on',...
+            'Parent',           CONT_hg(i));
+    end
 end
 % Fixing the axes scaling and setting a nice view angle
 axis('equal');
@@ -254,7 +260,9 @@ xlabel('Roll Command'); ylabel('Pitch Command')
 
 %% Animation Loop
 % Maximum and minimum surfaces' deflection
-max_deflection = reshape([Model3D.Control(:).max_deflection], 2, length(Model3D.Control(:)));
+if isfield(Model3D, 'Control')
+    max_deflection = reshape([Model3D.Control(:).max_deflection], 2, length(Model3D.Control(:)));
+end
 % Refresh plot for flight visualization
 tic;
 for i=1:length(heading_deg)
@@ -287,11 +295,13 @@ for i=1:length(heading_deg)
     set(AV_hg, 'Matrix',M1 * M2 * M3)
     
     % controls_deflection_deg
-    for j=1:length(Model3D.Control)
-        M1 = makehgtform('translate', -Model3D.Control(j).rot_point);   % Heading
-        M2 = makehgtform('axisrotate', Model3D.Control(j).rot_vect, controls_deflection_deg(i, j) * pi / 180);  % Pitch
-        M3 = makehgtform('translate', Model3D.Control(j).rot_point);  % bank_deg
-        set(CONT_hg(j), 'Matrix', M3 * M2 * M1);
+    if isfield(Model3D, 'Control')
+        for j=1:length(Model3D.Control)
+            M1 = makehgtform('translate', -Model3D.Control(j).rot_point);   % Heading
+            M2 = makehgtform('axisrotate', Model3D.Control(j).rot_vect, controls_deflection_deg(i, j) * pi / 180);  % Pitch
+            M3 = makehgtform('translate', Model3D.Control(j).rot_point);  % bank_deg
+            set(CONT_hg(j), 'Matrix', M3 * M2 * M1);
+        end
     end
     
     % Compute Aerodynamic Speed Vector
@@ -352,10 +362,12 @@ for i=1:length(heading_deg)
     set(hdle_text_nz, 'String', strcat('N_z=', num2str(nz_g(i), '%2.1f'), 'g'), 'Color', TextColor, 'FontWeight', FontWeight)
     
     % Detect control surfaces saturations
-    idx_sat = controls_deflection_deg(i, :) >= max_deflection(2, :)*0.99 | controls_deflection_deg(i, :) <= max_deflection(1, :)*0.99;
-    idx_nosat = ~idx_sat;
-    set(CONT(idx_sat), 'FaceColor', 'y');
-    set(CONT(idx_nosat), 'FaceColor', Model3D.Control(1).color);
+    if isfield(Model3D, 'Control')
+        idx_sat = controls_deflection_deg(i, :) >= max_deflection(2, :)*0.99 | controls_deflection_deg(i, :) <= max_deflection(1, :)*0.99;
+        idx_nosat = ~idx_sat;
+        set(CONT(idx_sat), 'FaceColor', 'y');
+        set(CONT(idx_nosat), 'FaceColor', Model3D.Control(1).color);
+    end
     
     % Stick Position
     STICK_X     = [0 -roll_command(i)];
